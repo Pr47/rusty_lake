@@ -5,7 +5,7 @@ pub mod config;
 
 use std::fs::read_to_string;
 
-use crate::config::ServerConfig;
+use crate::config::{add_rhai_handler, ServerConfig};
 
 #[cfg(feature = "with-rhai")] use rhai::module_resolvers::FileModuleResolver;
 #[cfg(feature = "with-rhai")] use rhai::Engine;
@@ -14,21 +14,31 @@ use crate::config::ServerConfig;
 
 fn main() {
     let config: String = read_to_string("./config.json").expect("error reading config.json");
-    let config: ServerConfig = serde_json::from_str(&config).expect("error parsing config.json");
+    let config0: ServerConfig = serde_json::from_str(&config).expect("error parsing config.json");
 
-    #[cfg(feature = "with-rhai")] {
-        let index_file: String = format!("{}/{}", config.rhai_folder, "index.rhai");
+    #[cfg(feature = "with-rhai")]
+    let _config1: ServerConfig = {
+        use std::sync::{Arc, Mutex};
+
+        let index_file: String = format!("{}/{}", config0.rhai_folder, "index.rhai");
 
         let mut resolver: FileModuleResolver = FileModuleResolver::new();
-        resolver.set_base_path(config.rhai_folder);
+        resolver.set_base_path(&config0.rhai_folder);
         resolver.set_extension("rhai");
 
         let mut engine: Engine = Engine::new();
         engine.set_module_resolver(resolver);
+        engine.register_type::<std::sync::Arc<std::sync::Mutex<ServerConfig>>>()
+            .register_fn("add_rhai_handler", add_rhai_handler);
+
 
         let ast: AST = engine.compile_file(index_file.into()).expect("failed compiling index.rhai");
 
         let mut scope = Scope::new();
-        engine.call_fn(&mut scope, &ast, "build_config", (config,))
-    }
+        let config0: Arc<Mutex<ServerConfig>> = Arc::new(Mutex::new(config0));
+        let _: () = engine.call_fn(&mut scope, &ast, "build_config", (config0.clone(),))
+            .expect("failed initializing");
+
+        Arc::try_unwrap(config0).unwrap().into_inner().unwrap()
+    };
 }

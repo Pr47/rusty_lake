@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "with-pr47")] use pr47::ffi::FFIException;
 #[cfg(feature = "with-pr47")] use crate::pr47_libs::dangerous_clone_closure;
 
+#[cfg(feature= "with-rhai")] use std::sync::{Arc, Mutex, MutexGuard};
 #[cfg(feature = "with-rhai")] use rhai::{Dynamic, FnPtr};
 
 pub enum ServerRequestHandler {
@@ -35,6 +36,9 @@ impl Debug for ServerRequestHandler {
         }
     }
 }
+
+#[cfg(feature = "with-pr47")] unsafe impl Send for ServerRequestHandler {}
+#[cfg(feature = "with-pr47")] unsafe impl Sync for ServerRequestHandler {}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ServerConfig {
@@ -123,4 +127,10 @@ impl ServerConfig {
             }
         }
     }
+}
+
+#[cfg(feature = "with-rhai")]
+pub fn add_rhai_handler(this: Arc<Mutex<ServerConfig>>, handler_path: String, fn_ptr: FnPtr) {
+    let mut this: MutexGuard<ServerConfig> = this.lock().unwrap();
+    this.add_rhai_handler(handler_path, fn_ptr);
 }
