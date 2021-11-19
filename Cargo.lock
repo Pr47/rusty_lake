@@ -553,8 +553,7 @@ checksum = "ed0cfbc8191465bed66e1718596ee0b0b35d5ee1f41c5df2189d0fe8bde535ba"
 [[package]]
 name = "pr47"
 version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "185371ac82cdf699846e966bc43c77d17f89f2500b512571bd9839828189d5ed"
+source = "git+https://github.com/Pr47/Pr47#694763d049e95a8e9c1054ee5e88778696da81a7"
 dependencies = [
  "futures",
  "phf",
@@ -947,9 +946,9 @@ dependencies = [
 
 [[package]]
 name = "xjbutil"
-version = "0.4.4"
+version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adbda3d2e024dfe4f7f6cbcb3b814be476ee57b27a9c322f5f4a1bfab15e7c4d"
+checksum = "216ec52fd9c52e84e49231fa26cb58c0e3f33e67732d51c824769324c7a03612"
 dependencies = [
  "futures",
  "tokio",

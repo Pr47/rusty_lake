@@ -1,3 +1,5 @@
+pub mod config;
+
 use pr47::builtins::closure::Closure;
 
 pub unsafe fn dangerous_clone_closure(closure: &Closure) -> Closure {

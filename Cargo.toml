@@ -13,10 +13,10 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 smallvec = "1"
 tokio = { version = "1", features = ["fs", "rt-multi-thread", "sync"] }
-xjbutil = "0.4.4"
+xjbutil = "0.4.6"
 
 hotwatch = { optional = true, version = "0.4.6" }
-pr47 = { optional = true, version = "0.1.3", features = ["default"] }
+pr47 = { optional = true, git = "https://github.com/Pr47/Pr47", features = ["default"] }
 rhai = { optional = true, version = "1", features = ["sync"] }
 
 [features]

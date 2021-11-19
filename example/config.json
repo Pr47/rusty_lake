@@ -1,0 +1,7 @@
+{
+  "listenAddr": "127.0.0.1",
+  "port": 3080,
+  "pr47Folder": "pr47",
+  "rhaiFolder": "rhai",
+  "staticFolder": "static"
+}
