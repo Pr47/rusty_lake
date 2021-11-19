@@ -1,15 +1,19 @@
 use std::fmt::{Debug, Formatter};
 
-use pr47::builtins::closure::Closure;
-use pr47::data::exception::UncheckedException;
-use pr47::data::wrapper::{OWN_INFO_READ_MASK, OwnershipInfo};
-use pr47::ffi::FFIException;
-use rhai::FnPtr;
+use serde::{Deserialize, Serialize};
 
-use crate::pr47::dangerous_clone_closure;
+#[cfg(feature = "with-pr47")] use pr47::builtins::closure::Closure;
+#[cfg(feature = "with-pr47")] use pr47::data::exception::UncheckedException;
+#[cfg(feature = "with-pr47")] use pr47::data::wrapper::{OWN_INFO_READ_MASK, OwnershipInfo};
+#[cfg(feature = "with-pr47")] use pr47::ffi::FFIException;
+#[cfg(feature = "with-pr47")] use crate::pr47_libs::dangerous_clone_closure;
+
+#[cfg(feature = "with-rhai")] use rhai::{Dynamic, FnPtr};
 
 pub enum ServerRequestHandler {
+    #[cfg(feature = "with-pr47")]
     Pr47Function(Closure),
+    #[cfg(feature = "with-rhai")]
     RhaiFunction(FnPtr),
     StaticFile { file_path: String, content_type: Option<String> }
 }
@@ -17,9 +21,11 @@ pub enum ServerRequestHandler {
 impl Debug for ServerRequestHandler {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            #[cfg(feature = "with-pr47")]
             ServerRequestHandler::Pr47Function(closure) => {
                 write!(f, "Pr47Function(func_id = {}", closure.func_id)
             },
+            #[cfg(feature = "with-rhai")]
             ServerRequestHandler::RhaiFunction(fn_ptr) => {
                 f.debug_tuple("RhaiFunction").field(&fn_ptr).finish()
             },
@@ -30,24 +36,29 @@ impl Debug for ServerRequestHandler {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ServerConfig {
-    listen_addr: String,
-    port: u16,
+    pub listen_addr: String,
+    pub port: u16,
 
-    handlers: Vec<(String, ServerRequestHandler)>
+    #[cfg(feature = "with-pr47")]
+    pub pr47_folder: String,
+
+    #[cfg(feature = "with-rhai")]
+    pub rhai_folder: String,
+
+    pub static_folder: String,
+
+    #[cfg_attr(
+        any(feature = "with-pr47", feature = "with-rhai"),
+        serde(skip_deserializing, skip_serializing)
+    )]
+    pub handlers: Vec<(String, ServerRequestHandler)>
 }
 
 impl ServerConfig {
-    pub fn new() -> Self {
-        Self {
-            listen_addr: "127.0.0.1".into(),
-            port: 8080,
-            handlers: vec![]
-        }
-    }
-
-    pub fn add_pr47_handler(&mut self, handler_path: String, input_closure: &mut Closure)
+    #[cfg(feature = "with-pr47")]
+    pub fn add_pr47_handler(&mut self, handler_path: &str, input_closure: &Closure)
         -> Result<(), FFIException>
     {
         let mut closure = unsafe { dangerous_clone_closure(input_closure) };
@@ -63,17 +74,53 @@ impl ServerConfig {
                 captured_value.set_ownership_info(OwnershipInfo::SharedToRust);
             }
         }
-        self.handlers.push((handler_path, ServerRequestHandler::Pr47Function(closure)));
+        self.handlers.push((handler_path.to_string(), ServerRequestHandler::Pr47Function(closure)));
         Ok(())
     }
 
+    #[cfg(feature = "with-pr47")]
+    pub fn add_static_file_handler_pr47(
+        &mut self,
+        handler_path: &str,
+        file_path: &str,
+        content_type: Option<&str>
+    ) {
+        self.handlers.push((
+            handler_path.to_string(),
+            ServerRequestHandler::StaticFile {
+                file_path: file_path.to_string(),
+                content_type: content_type.or_else(|| {
+                    mime_guess::from_path(file_path).first_raw()
+                }).map(ToString::to_string)
+            }
+        ));
+    }
+
+    #[cfg(feature = "with-rhai")]
     pub fn add_rhai_handler(&mut self, handler_path: String, fn_ptr: FnPtr) {
         self.handlers.push((handler_path, ServerRequestHandler::RhaiFunction(fn_ptr)));
     }
-}
 
-impl Default for ServerConfig {
-    fn default() -> Self {
-        Self::new()
+    #[cfg(feature = "with-rhai")]
+    pub fn add_static_file_handler_rhai(
+        &mut self,
+        handler_path: String,
+        file_path: String,
+        content_type: Dynamic
+    ) {
+        match content_type.into_immutable_string() {
+            Ok(immutable) => {
+                self.handlers.push((handler_path, ServerRequestHandler::StaticFile {
+                    file_path,
+                    content_type: Some(immutable.to_string())
+                }));
+            },
+            Err(_) => {
+                self.handlers.push((handler_path, ServerRequestHandler::StaticFile {
+                    file_path,
+                    content_type: None
+                }));
+            }
+        }
     }
 }
